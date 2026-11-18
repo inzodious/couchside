@@ -82,7 +82,7 @@ fun main(args: Array<String>) {
             exitApplication()
         }
         val icon = remember { Target.icon?.let { runCatching { Device.res().bitmap(Device.res().id(it, null, null)) }.getOrNull() }?.let { BitmapPainter(it.asImageBitmap()) } }
-        Window(onCloseRequest = quit, state = state, title = "${Target.label} · Couchside", icon = icon) {
+        Window(onCloseRequest = quit, state = state, title = "Couchside", icon = icon) {
             LaunchedEffect(Unit) {
                 // On the AWT thread, like Android's main thread: the app's Application first, then the first activity.
                 Device.start((Target.applicationClass?.let { Class.forName(it).getDeclaredConstructor().newInstance() } ?: Application()) as Application)

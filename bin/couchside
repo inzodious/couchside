@@ -4,7 +4,7 @@
 #   couchside                                  list the projects it knows
 #   couchside add NAME SOURCE [BRANCH] [DIR]   remember a project: SOURCE is a folder or a git URL; BRANCH (default main)
 #                                              and DIR (the Gradle project's folder inside the repo, default .) for a URL
-#   couchside menu NAME [ICON]                 add NAME to the app menu (the icon is found in the project if not given)
+#   couchside menu NAME [ICON]                 add Couchside to the app menu, opening NAME (Couchside's icon unless given)
 #   couchside NAME [flags]                     update NAME (a git source is pulled), rebuild it if anything changed, open it
 #     --no-update     open what's built without pulling or building
 #     --rebuild       build now even if nothing changed, then exit
@@ -38,24 +38,21 @@ case ${1:-} in
   menu)
     (( $# >= 2 )) && [[ -n $(project "$2") ]] || { echo "couchside menu NAME [ICON], for a project couchside knows"; exit 1; }
     name=$2 icon=${3:-}
-    if [[ -z $icon ]]; then
-      app=$DATA/apps/$name
-      [[ -f $app/icon.png ]] && icon=$app/icon.png || icon=applications-games
-    fi
+    [[ -n $icon ]] || icon=$SIM/art/couchside-256.png
     label=$(sed -n 's/^label=//p' "$DATA/apps/$name/target.properties" 2>/dev/null || true)
     tclass=$(sed -n 's/^name=//p' "$DATA/apps/$name/target.properties" 2>/dev/null || echo "$name")
     cat > "$HOME/.local/share/applications/couchside-$name.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=${label:-$name} (Couchside)
-Comment=${label:-$name} running in Couchside, updated and rebuilt when you open it
+Name=Couchside
+Comment=${label:-$name} on a simulated TV, updated and rebuilt when you open it
 Exec=$SIM/bin/couchside $name
 Icon=$icon
 Terminal=false
 Categories=Development;
 StartupWMClass=couchside-$tclass
 EOF
-    echo "Added ${label:-$name} (Couchside) to the menu."; exit 0 ;;
+    echo "Added Couchside (opening ${label:-$name}) to the menu."; exit 0 ;;
 esac
 
 name=$1; shift

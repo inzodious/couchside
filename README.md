@@ -14,7 +14,7 @@ graphics card through NVDEC or VA-API when it can).
 
 ```sh
 couchside add myapp https://github.com/you/your-tv-app.git main android   # name, git URL or folder, branch, Gradle dir
-couchside menu myapp        # adds "Your App (Couchside)" to the app menu
+couchside menu myapp        # adds Couchside to the app menu, opening myapp
 couchside myapp             # pulls the branch, rebuilds if the project or Couchside changed, opens it
 couchside myapp --app       # the app itself instead of its home screen
 couchside                   # lists the projects
