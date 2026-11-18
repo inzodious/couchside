@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# couchside: run an Android TV project's own code in a desktop window (see README.md).
+#
+#   couchside                                  list the projects it knows
+#   couchside add NAME SOURCE [BRANCH] [DIR]   remember a project: SOURCE is a folder or a git URL; BRANCH (default main)
+#                                              and DIR (the Gradle project's folder inside the repo, default .) for a URL
+#   couchside menu NAME [ICON]                 add NAME to the app menu (the icon is found in the project if not given)
+#   couchside NAME [flags]                     update NAME (a git source is pulled), rebuild it if anything changed, open it
+#     --no-update     open what's built without pulling or building
+#     --rebuild       build now even if nothing changed, then exit
+#     anything else goes to the simulator: --app, --fire-tv, --light, --fullscreen, --set NAME=VALUE, --control=N
+#
+# Projects are listed in ~/.config/couchside/projects (NAME SOURCE [BRANCH] [DIR] per line). A git source gets its
+# own clone in ~/.local/share/couchside/src/NAME; each built app lives in ~/.local/share/couchside/apps/NAME, its log
+# next to it, and what the app saves (sign-in, settings) in ~/.local/share/couchside/data/NAME.
+set -euo pipefail
+SIM=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/couchside
+DATA=${XDG_DATA_HOME:-$HOME/.local/share}/couchside
+PROJECTS=$CONFIG/projects
+export JAVA_HOME=${JAVA_HOME:-$HOME/.local/opt/jdk21} ANDROID_HOME=${ANDROID_HOME:-$HOME/Android/Sdk}
+mkdir -p "$CONFIG" "$DATA/apps" "$DATA/src"
+touch "$PROJECTS"
+
+notify() { echo "$1"; notify-send -i "${ICON:-applications-games}" "Couchside" "$1" 2>/dev/null || true; }
+project() { awk -v n="$1" '$1 == n' "$PROJECTS"; }
+
+case ${1:-} in
+  "")
+    [[ -s $PROJECTS ]] || { echo "No projects yet: couchside add NAME SOURCE [BRANCH] [DIR]"; exit 0; }
+    column -t "$PROJECTS"; exit 0 ;;
+  add)
+    (( $# >= 3 )) || { echo "couchside add NAME SOURCE [BRANCH] [DIR]"; exit 1; }
+    src=$3; [[ -d $src ]] && src=$(cd "$src" && pwd)
+    grep -v "^$2 " "$PROJECTS" > "$PROJECTS.new" || true
+    echo "$2 $src ${4:-main} ${5:-.}" >> "$PROJECTS.new" && mv "$PROJECTS.new" "$PROJECTS"
+    echo "Added $2. Open it with: couchside $2"; exit 0 ;;
+  menu)
+    (( $# >= 2 )) && [[ -n $(project "$2") ]] || { echo "couchside menu NAME [ICON], for a project couchside knows"; exit 1; }
+    name=$2 icon=${3:-}
+    if [[ -z $icon ]]; then
+      app=$DATA/apps/$name
+      [[ -f $app/icon.png ]] && icon=$app/icon.png || icon=applications-games
+    fi
+    label=$(sed -n 's/^label=//p' "$DATA/apps/$name/target.properties" 2>/dev/null || true)
+    tclass=$(sed -n 's/^name=//p' "$DATA/apps/$name/target.properties" 2>/dev/null || echo "$name")
+    cat > "$HOME/.local/share/applications/couchside-$name.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=${label:-$name} (Couchside)
+Comment=${label:-$name} running in Couchside, updated and rebuilt when you open it
+Exec=$SIM/bin/couchside $name
+Icon=$icon
+Terminal=false
+Categories=Development;
+StartupWMClass=couchside-$tclass
+EOF
+    echo "Added ${label:-$name} (Couchside) to the menu."; exit 0 ;;
+esac
+
+name=$1; shift
+line=$(project "$name")
+[[ -n $line ]] || { echo "couchside doesn't know \"$name\". Add it: couchside add $name SOURCE [BRANCH] [DIR]"; exit 1; }
+read -r _ source branch subdir <<<"$line"
+app=$DATA/apps/$name
+ICON=$app/icon.png
+
+update=1 rebuild=0 args=()
+for a in "$@"; do
+  case $a in
+    --no-update) update=0 ;;
+    --rebuild) rebuild=1 ;;
+    *) args+=("$a") ;;
+  esac
+done
+
+# The project's checkout: the folder itself, or couchside's own clone of the repo.
+if [[ -d $source ]]; then
+  repo=$source
+else
+  repo=$DATA/src/$name
+  [[ -d $repo/.git ]] || git clone -q --branch "$branch" "$source" "$repo"
+  if (( update )) && git -C "$repo" fetch -q origin "$branch" 2>/dev/null && [[ $(git -C "$repo" rev-parse HEAD) != $(git -C "$repo" rev-parse FETCH_HEAD) ]]; then
+    git -C "$repo" reset -q --hard FETCH_HEAD
+    notify "Updating $name to $(git -C "$repo" log -1 --format=%s | cut -c1-80)..."
+  fi
+fi
+target=$(cd "$repo/${subdir:-.}" && pwd)
+
+# What a build is of: the project's commit and edits, and couchside's. A change to either rebuilds.
+stamp() {
+  for d in "$repo" "$SIM"; do
+    if git -C "$d" rev-parse -q HEAD >/dev/null 2>&1; then git -C "$d" rev-parse HEAD; git -C "$d" diff HEAD | sha1sum; git -C "$d" ls-files -o --exclude-standard | sha1sum
+    else find "$d" -path '*/build' -prune -o -type f -newer "$app/stamp" -print 2>/dev/null | head -1; fi
+  done | sha1sum | cut -c1-40
+}
+
+# Build and swap the result in whole, so a failed build leaves the last good one in place.
+build() {
+  rm -rf "$app.new"
+  (cd "$SIM" && ./gradlew --console=plain -q :app:stage "-Ptarget=$target" "-Pstage=$app.new") >"$DATA/apps/$name.build.log" 2>&1 || return 1
+  stamp > "$app.new/stamp"
+  rm -rf "$app.old" && { [[ -d $app ]] && mv "$app" "$app.old" || true; } && mv "$app.new" "$app" && rm -rf "$app.old"
+}
+
+if (( update || rebuild )) && { (( rebuild )) || [[ ! -d $app ]] || [[ $(stamp) != $(cat "$app/stamp" 2>/dev/null) ]]; }; then
+  [[ -d $app ]] || notify "Building $name for the first time (a few minutes)..."
+  build || { notify "$name didn't build (see $DATA/apps/$name.build.log).$([[ -d $app ]] && echo ' Opening the last one.')"; [[ -d $app ]] || exit 1; }
+fi
+(( rebuild )) && exit 0
+[[ -d $app ]] || { notify "$name isn't built yet (see $DATA/apps/$name.build.log)."; exit 1; }
+
+cd "$app"
+# COUCHSIDE_JAVA_OPTS adds JVM flags (-Dskiko.fps.enabled=true logs the frame rate).
+# shellcheck disable=SC2086
+exec "$JAVA_HOME/bin/java" -Xmx1g -XX:+UseZGC -Dsun.java2d.uiScale.enabled=true ${COUCHSIDE_JAVA_OPTS:-} \
+  --add-opens java.desktop/sun.awt.X11=ALL-UNNAMED --enable-native-access=ALL-UNNAMED \
+  -cp "$(paste -sd: classpath.txt)" couchside.MainKt "${args[@]}" >"$DATA/apps/$name.log" 2>&1

@@ -1,0 +1,5 @@
+linux-amd64 com.caoccao.javet:javet:6.0.3 com.caoccao.javet:javet-v8-linux-x86_64:6.0.3
+linux-aarch64 com.caoccao.javet:javet:6.0.3 com.caoccao.javet:javet-v8-linux-arm64:6.0.3
+windows-amd64 com.caoccao.javet:javet:6.0.3 com.caoccao.javet:javet-v8-windows-x86_64:6.0.3
+mac-x86_64 com.caoccao.javet:javet:6.0.3 com.caoccao.javet:javet-v8-macos-x86_64:6.0.3
+mac-aarch64 com.caoccao.javet:javet:6.0.3 com.caoccao.javet:javet-v8-macos-arm64:6.0.3

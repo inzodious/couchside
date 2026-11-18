@@ -1,0 +1,8 @@
+build/
+.gradle/
+.kotlin/
+buildSrc/build/
+buildSrc/.gradle/
+buildSrc/.kotlin/
+*.hprof
+hs_err_*.log

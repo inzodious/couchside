@@ -1,0 +1,6 @@
+# tv-material's Surface reads the Android key event behind a Compose key; on desktop that comes from the simulator's remote.
+file: androidx/tv/material3/SurfaceImpl.kt
+- import androidx.compose.ui.input.key.NativeKeyEvent
++ import android.view.KeyEvent as NativeKeyEvent
+- keyEvent.nativeKeyEvent
++ couchside.shim.Keys.native(keyEvent)
