@@ -1,3 +1,5 @@
+<p align="center"><img src="art/couchside-256.png" width="128" alt="Couchside"></p>
+
 # Couchside
 
 Your Android TV app, from the couch, on your PC. Couchside runs an Android TV project's own Kotlin and Java in a normal

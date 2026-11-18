@@ -16,7 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -81,7 +81,9 @@ fun main(args: Array<String>) {
             Activities.shutdown()
             exitApplication()
         }
-        val icon = remember { Target.icon?.let { runCatching { Device.res().bitmap(Device.res().id(it, null, null)) }.getOrNull() }?.let { BitmapPainter(it.asImageBitmap()) } }
+        val icon = remember {
+            Main::class.java.getResourceAsStream("/couchside/icon.png")?.use { BitmapPainter(org.jetbrains.skia.Image.makeFromEncoded(it.readBytes()).toComposeImageBitmap()) }
+        }
         Window(onCloseRequest = quit, state = state, title = "Couchside", icon = icon) {
             LaunchedEffect(Unit) {
                 // On the AWT thread, like Android's main thread: the app's Application first, then the first activity.
