@@ -51,11 +51,11 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import couchside.shim.Activities
 
 /**
- * The TV's screen is 540 dp high (1080p at Android's xhdpi) whatever size the window is, and as wide as the window's
- * shape makes it: 960 dp in a 16:9 window, wider in a wider one. So the app always fills the window, no black bars.
+ * The TV's screen is 960 x 540 dp (1080p at Android's xhdpi) whatever size the window is: a TV is always 16:9, and its
+ * apps' backgrounds are made for that, so a window of another shape shows it with bars rather than stretch the app.
  */
 val TV_HEIGHT = 540.dp
-private var tvWidth by mutableStateOf(960.dp)
+private val tvWidth = 960.dp
 
 /** The last frame's drawing, kept so a screenshot can be made of it (Control.kt, and the app's own "Tell us" shot). */
 object Screen {
@@ -70,9 +70,7 @@ object Screen {
 @Composable
 fun TvScreen(width: Dp, height: Dp) {
     val window = LocalDensity.current
-    val scale = height / TV_HEIGHT
-    tvWidth = width / scale
-    couchside.shim.ScreenSize.width = Math.round(tvWidth.value * 2)
+    val scale = minOf(width / tvWidth, height / TV_HEIGHT)
     val tv = remember(window, scale) { Density(window.density * scale, 1f) }
     val layer = rememberGraphicsLayer()
     Screen.layer = layer

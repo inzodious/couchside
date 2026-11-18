@@ -45,7 +45,7 @@ card, and `COUCHSIDE_MUTE=1` starts silent.
 
 ## The remote
 
-The window fills with the app at any size: the TV is 1080 pixels high, and as wide as the window's shape.
+The TV is 16:9 at any window size (a window of another shape shows bars, as the app's backgrounds are made for 16:9).
 
 | Key or button | Remote |
 |---|---|
